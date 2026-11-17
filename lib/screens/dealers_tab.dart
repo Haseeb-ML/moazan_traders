@@ -5,6 +5,7 @@ import '../models/ledger_entry.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../utils/pdf_report_service.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/dealer_form_dialog.dart';
 import '../widgets/entry_form_dialog.dart';
@@ -287,7 +288,23 @@ class _DealersTabState extends State<DealersTab> {
                         onSelected: (_) =>
                             setState(() => _filter = _DealerFilter.settled),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 10),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.red,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: allSummaries.isEmpty
+                            ? null
+                            : () => PdfReportService.openAllDealersBalancePdf(
+                                  context,
+                                  allSummaries,
+                                ),
+                        icon: const Icon(Icons.picture_as_pdf_outlined,
+                            size: 16),
+                        label: const Text('PDF'),
+                      ),
+                      const SizedBox(width: 12),
                       DropdownButton<_DealerSort>(
                         value: _sort,
                         underline: const SizedBox(),

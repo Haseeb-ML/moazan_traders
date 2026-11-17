@@ -5,6 +5,7 @@ import 'package:moazan_traders/main.dart';
 import 'package:moazan_traders/models/ledger_entry.dart';
 import 'package:moazan_traders/providers/ledger_provider.dart';
 import 'package:moazan_traders/services/ledger_repository.dart';
+import 'package:moazan_traders/utils/pdf_report_service.dart';
 
 void main() {
   group('Moazan Traders Ledger Tests', () {
@@ -169,6 +170,13 @@ void main() {
       // Auto-dedup should have merged duplicates back to 73 while preserving the 2500 entry
       expect(provider.dealers.length, 73);
       expect(provider.totalReceivable, 2500);
+
+      // Verify Dealer Balance PDF generates valid PDF bytes
+      final pdfBytes = await PdfReportService.buildAllDealersBalancePdf(
+        provider.getDealerSummaries(),
+      );
+      expect(pdfBytes.length, greaterThan(1000));
+      expect(String.fromCharCodes(pdfBytes.take(4)), '%PDF');
 
       provider.dispose();
       repo.dispose();

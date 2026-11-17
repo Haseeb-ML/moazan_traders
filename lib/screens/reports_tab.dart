@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../utils/pdf_report_service.dart';
 import 'dealer_detail_screen.dart';
 
 class ReportsTab extends StatefulWidget {
@@ -136,10 +137,28 @@ class _ReportsTabState extends State<ReportsTab> {
 
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-              child: Text(
-                'Dealer-wise Breakdown (${dealerBreakdown.length} active dealers)',
-                style:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Dealer-wise Breakdown (${dealerBreakdown.length} active dealers)',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.red,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: () => PdfReportService.openAllDealersBalancePdf(
+                      context,
+                      provider.getDealerSummaries(),
+                    ),
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                    label: const Text('All Dealers PDF'),
+                  ),
+                ],
               ),
             ),
 

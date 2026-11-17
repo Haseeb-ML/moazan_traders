@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../utils/pdf_report_service.dart';
 import '../utils/pwa_install_stub.dart'
     if (dart.library.js_interop) '../utils/pwa_install_web.dart';
 import '../utils/web_download_stub.dart'
@@ -311,6 +312,29 @@ class _DataTabState extends State<DataTab> {
                     children: [
                       ListTile(
                         leading: const CircleAvatar(
+                          backgroundColor: AppColors.debitBg,
+                          child: Icon(Icons.picture_as_pdf_outlined,
+                              color: AppColors.red),
+                        ),
+                        title: const Text('Dealer Balance Report (PDF)',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: const Text(
+                            'All dealers with Dealer Code, Debit Balance & Credit Balance'),
+                        trailing: FilledButton(
+                          style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.red),
+                          onPressed: _busy
+                              ? null
+                              : () => PdfReportService.openAllDealersBalancePdf(
+                                    context,
+                                    provider.getDealerSummaries(),
+                                  ),
+                          child: const Text('PDF'),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const CircleAvatar(
                           backgroundColor: Color(0xFFE8EEF7),
                           child: Icon(Icons.download_outlined,
                               color: AppColors.navy),
@@ -388,6 +412,29 @@ class _DataTabState extends State<DataTab> {
                 Card(
                   child: Column(
                     children: [
+                      ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: AppColors.debitBg,
+                          child: Icon(Icons.picture_as_pdf_outlined,
+                              color: AppColors.red),
+                        ),
+                        title: const Text('Dealer Balance Report (PDF)',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: const Text(
+                            'All dealers with Dealer Code, Debit Balance & Credit Balance'),
+                        trailing: FilledButton(
+                          style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.red),
+                          onPressed: _busy
+                              ? null
+                              : () => PdfReportService.openAllDealersBalancePdf(
+                                    context,
+                                    provider.getDealerSummaries(),
+                                  ),
+                          child: const Text('PDF'),
+                        ),
+                      ),
+                      const Divider(height: 1),
                       ListTile(
                         leading: const CircleAvatar(
                           backgroundColor: AppColors.debitBg,
