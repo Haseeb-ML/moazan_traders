@@ -12,6 +12,7 @@ abstract class LedgerRepository {
   Stream<List<LedgerEntry>> watchEntries();
 
   Future<void> seedInitialDealers(List<InitialDealerSeed> seeds);
+  Future<int> deduplicateDealers();
   Future<Dealer> addDealer({required String code, required String name});
   Future<void> updateDealer(Dealer dealer);
   Future<void> deleteDealer(String dealerId);
@@ -79,7 +80,8 @@ class FirestoreLedgerRepository implements LedgerRepository {
     final batch = _firestore.batch();
     final now = DateTime.now();
     for (final seed in seeds) {
-      final docRef = _dealersCol.doc();
+      // Use deterministic document ID (seed.code) so concurrent startups never create duplicates.
+      final docRef = _dealersCol.doc(seed.code);
       batch.set(docRef, {
         'code': seed.code,
         'name': seed.name,
@@ -87,6 +89,72 @@ class FirestoreLedgerRepository implements LedgerRepository {
       });
     }
     await batch.commit();
+  }
+
+  @override
+  Future<int> deduplicateDealers() async {
+    final dealersSnap = await _dealersCol.get();
+    final byCode = <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
+    for (final doc in dealersSnap.docs) {
+      final code = (doc.data()['code'] ?? '').toString().trim();
+      if (code.isEmpty) continue;
+      byCode.putIfAbsent(code, () => []).add(doc);
+    }
+
+    final duplicateGroups =
+        byCode.values.where((group) => group.length > 1).toList();
+    if (duplicateGroups.isEmpty) return 0;
+
+    final entriesSnap = await _entriesCol.get();
+    final entryCounts = <String, int>{};
+    for (final e in entriesSnap.docs) {
+      final dId = (e.data()['dealerId'] ?? '').toString();
+      entryCounts[dId] = (entryCounts[dId] ?? 0) + 1;
+    }
+
+    var batch = _firestore.batch();
+    int ops = 0;
+    int removedCount = 0;
+
+    for (final group in duplicateGroups) {
+      // Keep the dealer with the most entries (or first one if tied).
+      group.sort((a, b) =>
+          (entryCounts[b.id] ?? 0).compareTo(entryCounts[a.id] ?? 0));
+      final keeper = group.first;
+
+      for (int i = 1; i < group.length; i++) {
+        final dup = group[i];
+        // Re-point any entries from duplicate dealer to the keeper dealer.
+        for (final entryDoc in entriesSnap.docs) {
+          if ((entryDoc.data()['dealerId'] ?? '').toString() == dup.id) {
+            batch.update(entryDoc.reference, {
+              'dealerId': keeper.id,
+              'dealerCode': (keeper.data()['code'] ?? '').toString(),
+              'dealerName': (keeper.data()['name'] ?? '').toString(),
+            });
+            ops++;
+            if (ops >= 400) {
+              await batch.commit();
+              batch = _firestore.batch();
+              ops = 0;
+            }
+          }
+        }
+        batch.delete(dup.reference);
+        removedCount++;
+        ops++;
+        if (ops >= 400) {
+          await batch.commit();
+          batch = _firestore.batch();
+          ops = 0;
+        }
+      }
+    }
+
+    if (ops > 0) {
+      await batch.commit();
+    }
+    return removedCount;
   }
 
   @override
@@ -369,6 +437,53 @@ class InMemoryLedgerRepository implements LedgerRepository {
       ));
     }
     _emitDealers();
+  }
+
+  @override
+  Future<int> deduplicateDealers() async {
+    final byCode = <String, List<Dealer>>{};
+    for (final d in _dealers) {
+      final code = d.code.trim();
+      if (code.isEmpty) continue;
+      byCode.putIfAbsent(code, () => []).add(d);
+    }
+
+    final duplicateGroups =
+        byCode.values.where((g) => g.length > 1).toList();
+    if (duplicateGroups.isEmpty) {
+      _emitDealers();
+      return 0;
+    }
+
+    final entryCounts = <String, int>{};
+    for (final e in _entries) {
+      entryCounts[e.dealerId] = (entryCounts[e.dealerId] ?? 0) + 1;
+    }
+
+    int removed = 0;
+    for (final group in duplicateGroups) {
+      group.sort((a, b) =>
+          (entryCounts[b.id] ?? 0).compareTo(entryCounts[a.id] ?? 0));
+      final keeper = group.first;
+      for (int i = 1; i < group.length; i++) {
+        final dup = group[i];
+        for (int j = 0; j < _entries.length; j++) {
+          if (_entries[j].dealerId == dup.id) {
+            _entries[j] = _entries[j].copyWith(
+              dealerId: keeper.id,
+              dealerCode: keeper.code,
+              dealerName: keeper.name,
+            );
+          }
+        }
+        _dealers.removeWhere((d) => d.id == dup.id);
+        removed++;
+      }
+    }
+
+    _emitDealers();
+    _emitEntries();
+    return removed;
   }
 
   @override

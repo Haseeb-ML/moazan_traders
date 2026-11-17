@@ -146,6 +146,34 @@ void main() {
       repo.dispose();
     });
 
+    test('Deduplicating dealers merges duplicates and preserves entries',
+        () async {
+      final repo = InMemoryLedgerRepository(seedDefaults: true);
+      // Simulate a duplicate dealer already in DB before app starts
+      final dupDealer = await repo.addDealer(
+        code: '100-0002',
+        name: 'HAFIZ TARIQ K/S',
+      );
+      await repo.addEntry(
+        dealer: dupDealer,
+        type: EntryType.debit,
+        amount: 2500,
+        date: DateTime.now(),
+      );
+
+      final provider = LedgerProvider(repository: repo);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await provider.removeDuplicateDealers();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      // Auto-dedup should have merged duplicates back to 73 while preserving the 2500 entry
+      expect(provider.dealers.length, 73);
+      expect(provider.totalReceivable, 2500);
+
+      provider.dispose();
+      repo.dispose();
+    });
+
     testWidgets('UI renders dealers, searches by code/name, and switches tabs',
         (tester) async {
       final repo = InMemoryLedgerRepository(seedDefaults: true);

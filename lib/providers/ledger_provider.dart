@@ -29,6 +29,7 @@ class LedgerProvider extends ChangeNotifier {
   List<Dealer> _dealers = [];
   List<LedgerEntry> _entries = [];
   bool _isLoading = true;
+  bool _dedupChecked = false;
   String? _error;
 
   StreamSubscription<List<Dealer>>? _dealersSub;
@@ -51,6 +52,10 @@ class LedgerProvider extends ChangeNotifier {
         _isLoading = false;
         _error = null;
         notifyListeners();
+        if (!_dedupChecked && _hasDuplicateCodes(list)) {
+          _dedupChecked = true;
+          Timer.run(() => repository.deduplicateDealers());
+        }
       },
       onError: (Object e) {
         _error = e.toString();
@@ -74,9 +79,24 @@ class LedgerProvider extends ChangeNotifier {
     );
   }
 
+  bool _hasDuplicateCodes(List<Dealer> list) {
+    final seen = <String>{};
+    for (final d in list) {
+      final code = d.code.trim();
+      if (code.isNotEmpty && !seen.add(code)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Auto-seed the 73 Moazan Traders dealers if the database is empty.
   Future<void> seedDefaultDealersIfEmpty() async {
     await repository.seedInitialDealers(kInitialDealers);
+  }
+
+  Future<int> removeDuplicateDealers() {
+    return repository.deduplicateDealers();
   }
 
   /// Computes summary for each dealer (total debit, total credit, net balance).
