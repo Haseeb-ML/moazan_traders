@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "226827652310",
+    "project_id": "moazan-traders-kamoke",
+    "storage_bucket": "moazan-traders-kamoke.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:226827652310:android:c68fdd7b371c992fac0d77",
+        "android_client_info": {
+          "package_name": "com.moazantraders.moazan_traders"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiofvTSWERFLTmOqVcar5PEs3lPDWLV70"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
