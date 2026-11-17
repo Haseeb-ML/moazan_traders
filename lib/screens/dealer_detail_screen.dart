@@ -405,6 +405,15 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
                                               cellPadH: cellPadH,
                                               cellPadV: cellPadV,
                                             ),
+                                          _buildTotalRow(
+                                            totalDebit: periodDebit,
+                                            totalCredit: periodCredit,
+                                            netBalance:
+                                                periodDebit - periodCredit,
+                                            isCompact: isCompact,
+                                            cellPadH: cellPadH,
+                                            cellPadV: cellPadV,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -566,6 +575,90 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  TableRow _buildTotalRow({
+    required double totalDebit,
+    required double totalCredit,
+    required double netBalance,
+    required bool isCompact,
+    required double cellPadH,
+    required double cellPadV,
+  }) {
+    return TableRow(
+      decoration: BoxDecoration(
+        color: AppColors.navy.withValues(alpha: 0.08),
+      ),
+      children: [
+        Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: cellPadH, vertical: cellPadV),
+          child: Text(
+            'Total',
+            style: TextStyle(
+              fontSize: isCompact ? 12 : 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navy,
+            ),
+          ),
+        ),
+        Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: cellPadH, vertical: cellPadV),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                AppFormatters.formatNumber(totalDebit),
+                style: TextStyle(
+                  fontSize: isCompact ? 12 : 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.debit,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: cellPadH, vertical: cellPadV),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                AppFormatters.formatNumber(totalCredit),
+                style: TextStyle(
+                  fontSize: isCompact ? 12 : 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.credit,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: cellPadH, vertical: cellPadV),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                AppFormatters.formatNumber(netBalance),
+                style: TextStyle(
+                  fontSize: isCompact ? 12 : 13,
+                  fontWeight: FontWeight.w900,
+                  color: netBalance > 0 ? AppColors.navy : AppColors.credit,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox.shrink(),
       ],
     );
   }

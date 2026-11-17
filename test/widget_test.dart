@@ -235,6 +235,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.text('Total'), findsOneWidget);
       expect(find.byTooltip('Edit Entry'), findsOneWidget);
       expect(find.byTooltip('Delete Entry'), findsOneWidget);
       expect(tester.takeException(), isNull);
