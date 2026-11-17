@@ -1,11 +1,11 @@
 {
-    "name": "moazan_traders",
-    "short_name": "moazan_traders",
+    "name": "Moazan Traders - Digital Khata",
+    "short_name": "Moazan Traders",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#0B224B",
+    "description": "Moazan Traders Kamoke - Online Digital Khata",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
