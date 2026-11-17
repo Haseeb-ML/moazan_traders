@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
@@ -10,7 +11,22 @@ Future<void> downloadTextFile(
   required String content,
   String mimeType = 'text/plain',
 }) async {
-  final bytes = utf8.encode(content);
+  final bytes = Uint8List.fromList(utf8.encode(content));
+  await downloadBytesFile(
+    context,
+    filename: filename,
+    bytes: bytes,
+    mimeType: mimeType,
+  );
+}
+
+/// Web implementation: triggers a direct browser download for binary files (PDF).
+Future<void> downloadBytesFile(
+  BuildContext context, {
+  required String filename,
+  required Uint8List bytes,
+  String mimeType = 'application/pdf',
+}) async {
   final blob = web.Blob(
     [bytes.toJS].toJS,
     web.BlobPropertyBag(type: mimeType),

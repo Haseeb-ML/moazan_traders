@@ -5,6 +5,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../providers/ledger_provider.dart';
+import '../theme/app_theme.dart';
+import 'web_download_stub.dart'
+    if (dart.library.js_interop) 'web_download_web.dart';
 
 class PdfReportService {
   static final NumberFormat _amountFmt = NumberFormat('#,##0.00', 'en_US');
@@ -45,7 +48,7 @@ class PdfReportService {
           children: [
             pw.Center(
               child: pw.Text(
-                'Moazan Traders — Kamoke',
+                'Moazan Traders - Kamoke',
                 style: pw.TextStyle(
                   fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
@@ -197,9 +200,88 @@ class PdfReportService {
     List<DealerSummary> summaries,
   ) async {
     final stamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    await Printing.layoutPdf(
-      name: 'Moazan_Traders_Dealer_Balance_$stamp.pdf',
-      onLayout: (_) => buildAllDealersBalancePdf(summaries),
+    final filename = 'Moazan_Traders_Dealer_Balance_$stamp.pdf';
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _DealerBalancePdfPreviewScreen(
+          filename: filename,
+          summaries: summaries,
+        ),
+      ),
+    );
+  }
+}
+
+class _DealerBalancePdfPreviewScreen extends StatefulWidget {
+  final String filename;
+  final List<DealerSummary> summaries;
+
+  const _DealerBalancePdfPreviewScreen({
+    required this.filename,
+    required this.summaries,
+  });
+
+  @override
+  State<_DealerBalancePdfPreviewScreen> createState() =>
+      _DealerBalancePdfPreviewScreenState();
+}
+
+class _DealerBalancePdfPreviewScreenState
+    extends State<_DealerBalancePdfPreviewScreen> {
+  bool _downloading = false;
+
+  Future<void> _download() async {
+    setState(() => _downloading = true);
+    try {
+      final bytes =
+          await PdfReportService.buildAllDealersBalancePdf(widget.summaries);
+      if (!mounted) return;
+      await downloadBytesFile(
+        context,
+        filename: widget.filename,
+        bytes: bytes,
+        mimeType: 'application/pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dealer Balance PDF'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: _downloading ? null : _download,
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('Download PDF'),
+            ),
+          ),
+        ],
+      ),
+      body: PdfPreview(
+        canChangePageFormat: false,
+        canChangeOrientation: false,
+        canDebug: false,
+        pdfFileName: widget.filename,
+        build: (_) =>
+            PdfReportService.buildAllDealersBalancePdf(widget.summaries),
+      ),
     );
   }
 }

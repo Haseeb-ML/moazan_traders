@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:printing/printing.dart';
 
 /// Mobile fallback: copies exported text to clipboard and notifies user.
 Future<void> downloadTextFile(
@@ -16,4 +17,14 @@ Future<void> downloadTextFile(
       ),
     );
   }
+}
+
+/// Mobile implementation: opens native share/save sheet for binary files like PDF.
+Future<void> downloadBytesFile(
+  BuildContext context, {
+  required String filename,
+  required Uint8List bytes,
+  String mimeType = 'application/pdf',
+}) async {
+  await Printing.sharePdf(bytes: bytes, filename: filename);
 }
