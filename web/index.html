@@ -31,6 +31,32 @@
 
   <title>Moazan Traders - Digital Khata</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    let _moazanDeferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      _moazanDeferredPrompt = e;
+      window.dispatchEvent(new Event('moazan-install-ready'));
+    });
+    window.addEventListener('appinstalled', () => {
+      _moazanDeferredPrompt = null;
+      window.dispatchEvent(new Event('moazan-installed'));
+    });
+    window.moazanIsStandalone = function () {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             window.navigator.standalone === true;
+    };
+    window.moazanCanPromptInstall = function () {
+      return _moazanDeferredPrompt !== null;
+    };
+    window.moazanTriggerInstall = async function () {
+      if (!_moazanDeferredPrompt) return false;
+      _moazanDeferredPrompt.prompt();
+      const { outcome } = await _moazanDeferredPrompt.userChoice;
+      _moazanDeferredPrompt = null;
+      return outcome === 'accepted';
+    };
+  </script>
 </head>
 <body>
   <!--

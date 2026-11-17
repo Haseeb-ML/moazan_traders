@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../models/ledger_entry.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/pwa_install_stub.dart'
+    if (dart.library.js_interop) '../utils/pwa_install_web.dart';
 import '../widgets/entry_form_dialog.dart';
 import 'data_tab.dart';
 import 'dealers_tab.dart';
@@ -75,6 +77,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          if (isWebPlatform && !isPwaStandalone())
+            IconButton(
+              tooltip: 'Install App / Add Shortcut',
+              icon: const Icon(Icons.install_mobile, color: Colors.white),
+              onPressed: () => triggerPwaInstallOrGuide(context),
+            ),
           if (!isCompact) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),

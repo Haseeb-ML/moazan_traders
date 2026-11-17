@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../utils/pwa_install_stub.dart'
+    if (dart.library.js_interop) '../utils/pwa_install_web.dart';
 import '../utils/web_download_stub.dart'
     if (dart.library.js_interop) '../utils/web_download_web.dart';
 import '../widgets/confirm_delete_dialog.dart';
@@ -274,6 +276,29 @@ class _DataTabState extends State<DataTab> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                if (isWebPlatform && !isPwaStandalone()) ...[
+                  Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFE8EEF7),
+                        child:
+                            Icon(Icons.install_mobile, color: AppColors.navy),
+                      ),
+                      title: const Text('Download App / Add Shortcut',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: const Text(
+                          'Create a Home Screen / Desktop shortcut with Moazan Traders icon'),
+                      trailing: FilledButton(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.navy),
+                        onPressed: () => triggerPwaInstallOrGuide(context),
+                        child: const Text('Install'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Export Section
                 const Text(
