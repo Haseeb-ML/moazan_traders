@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/dealer.dart';
 import '../models/ledger_entry.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../utils/pdf_report_service.dart';
-import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/dealer_form_dialog.dart';
 import '../widgets/entry_form_dialog.dart';
 import 'dealer_detail_screen.dart';
@@ -32,17 +30,6 @@ class _DealersTabState extends State<DealersTab> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _deleteDealer(Dealer dealer) async {
-    final ok = await showConfirmDeleteDialog(
-      context,
-      title: 'Delete Dealer',
-      message:
-          'Delete "${dealer.name}" (${dealer.code}) and all of their khata entries?',
-    );
-    if (!ok || !mounted) return;
-    await context.read<LedgerProvider>().deleteDealer(dealer.id);
   }
 
   @override
@@ -371,7 +358,6 @@ class _DealersTabState extends State<DealersTab> {
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (ctx, i) => _DealerCard(
                       item: filtered[i],
-                      onDelete: () => _deleteDealer(filtered[i].dealer),
                     ),
                   ),
                 )
@@ -391,8 +377,6 @@ class _DealersTabState extends State<DealersTab> {
                             Expanded(
                               child: _DealerCard(
                                 item: filtered[firstIdx],
-                                onDelete: () =>
-                                    _deleteDealer(filtered[firstIdx].dealer),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -400,8 +384,6 @@ class _DealersTabState extends State<DealersTab> {
                               child: secondIdx < filtered.length
                                   ? _DealerCard(
                                       item: filtered[secondIdx],
-                                      onDelete: () => _deleteDealer(
-                                          filtered[secondIdx].dealer),
                                     )
                                   : const SizedBox(),
                             ),
@@ -421,11 +403,9 @@ class _DealersTabState extends State<DealersTab> {
 
 class _DealerCard extends StatelessWidget {
   final DealerSummary item;
-  final VoidCallback onDelete;
 
   const _DealerCard({
     required this.item,
-    required this.onDelete,
   });
 
   @override
@@ -582,13 +562,6 @@ class _DealerCard extends StatelessWidget {
                       context,
                       existingDealer: dealer,
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Delete Dealer',
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.delete_outline,
-                        size: 18, color: AppColors.red),
-                    onPressed: onDelete,
                   ),
                 ],
               ),

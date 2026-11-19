@@ -415,29 +415,6 @@ class _DataTabState extends State<DataTab> {
                       ListTile(
                         leading: const CircleAvatar(
                           backgroundColor: AppColors.debitBg,
-                          child: Icon(Icons.picture_as_pdf_outlined,
-                              color: AppColors.red),
-                        ),
-                        title: const Text('Dealer Balance Report (PDF)',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: const Text(
-                            'All dealers with Dealer Code, Debit Balance & Credit Balance'),
-                        trailing: FilledButton(
-                          style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.red),
-                          onPressed: _busy
-                              ? null
-                              : () => PdfReportService.openAllDealersBalancePdf(
-                                    context,
-                                    provider.getDealerSummaries(),
-                                  ),
-                          child: const Text('PDF'),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: AppColors.debitBg,
                           child: Icon(Icons.date_range_outlined,
                               color: AppColors.red),
                         ),

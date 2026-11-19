@@ -4,6 +4,7 @@ import 'package:moazan_traders/data/initial_dealers.dart';
 import 'package:moazan_traders/main.dart';
 import 'package:moazan_traders/models/ledger_entry.dart';
 import 'package:moazan_traders/providers/ledger_provider.dart';
+import 'package:moazan_traders/services/auth_service.dart';
 import 'package:moazan_traders/services/ledger_repository.dart';
 import 'package:moazan_traders/utils/pdf_report_service.dart';
 
@@ -206,7 +207,7 @@ void main() {
       // Switch to Reports tab
       await tester.tap(find.text('Reports'));
       await tester.pumpAndSettle();
-      expect(find.text('Total Debit (Bills)'), findsOneWidget);
+      expect(find.text('Total Debit'), findsOneWidget);
 
       repo.dispose();
     });
@@ -224,8 +225,9 @@ void main() {
 
       expect(find.text('New Debit'), findsOneWidget);
       expect(find.text('New Credit'), findsOneWidget);
+      expect(find.byTooltip('Delete Dealer'), findsNothing);
 
-      // Open HAFIZ TARIQ K/S ledger and verify Edit + Delete icons fit cleanly
+      // Open HAFIZ TARIQ K/S ledger and verify Edit icon fits cleanly without Delete icon
       await tester.ensureVisible(find.text('HAFIZ TARIQ K/S'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('HAFIZ TARIQ K/S'));
@@ -244,9 +246,124 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Total'), findsOneWidget);
+      expect(find.text('PDF'), findsOneWidget);
       expect(find.byTooltip('Edit Entry'), findsOneWidget);
-      expect(find.byTooltip('Delete Entry'), findsOneWidget);
+      expect(find.byTooltip('Delete Entry'), findsNothing);
       expect(tester.takeException(), isNull);
+
+      repo.dispose();
+    });
+
+    testWidgets('Login screen gates app and allows credential updates',
+        (tester) async {
+      final repo = InMemoryLedgerRepository(seedDefaults: true);
+      final auth = InMemoryAuthService(initiallyLoggedIn: false);
+
+      await tester.pumpWidget(
+        MoazanTradersApp(repository: repo, authService: auth),
+      );
+      await tester.pumpAndSettle();
+
+      // Should show Login screen first
+      expect(find.text('Digital Khata — Sign In'), findsOneWidget);
+      expect(find.text('All Khata'), findsNothing);
+
+      // Wrong password fails
+      await tester.enterText(find.byType(TextFormField).at(0), 'admin');
+      await tester.enterText(find.byType(TextFormField).at(1), 'wrong');
+      await tester.tap(find.text('Sign In'));
+      await tester.pumpAndSettle();
+      expect(find.text('Invalid username or password'), findsOneWidget);
+
+      // Default admin / 123456 succeeds
+      await tester.enterText(find.byType(TextFormField).at(1), '123456');
+      await tester.tap(find.text('Sign In'));
+      await tester.pumpAndSettle();
+      expect(find.text('All Khata'), findsOneWidget);
+
+      // Change credentials & verify new login works
+      final changed = await auth.changeCredentials(
+        currentPassword: '123456',
+        newUsername: 'moazan',
+        newPassword: 'pass99',
+      );
+      expect(changed, isTrue);
+      await auth.logout();
+      expect(await auth.login('admin', '123456'), isFalse);
+      expect(await auth.login('moazan', 'pass99'), isTrue);
+
+      repo.dispose();
+    });
+
+    testWidgets(
+        'Data Backup & Management module handles Export, Import, Clear, and Reset',
+        (tester) async {
+      final repo = InMemoryLedgerRepository(seedDefaults: true);
+      final auth = InMemoryAuthService(initiallyLoggedIn: true);
+
+      await tester.pumpWidget(
+        MoazanTradersApp(repository: repo, authService: auth),
+      );
+      await tester.pumpAndSettle();
+
+      // Add a sample entry first
+      final dealers = await repo.watchDealers().first;
+      await repo.addEntry(
+        dealer: dealers.first,
+        type: EntryType.debit,
+        amount: 2500,
+        date: DateTime.now(),
+        note: 'Test bill',
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Data tab
+      await tester.tap(find.text('Data'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Data Backup & Management'), findsOneWidget);
+      expect(find.text('73 Dealers  •  1 Khata Entries'), findsOneWidget);
+      // Verify duplicate PDF tile was removed from Delete section (only 1 PDF button)
+      expect(find.text('PDF'), findsOneWidget);
+
+      // Export JSON & CSV (triggers downloadTextFile cleanly without errors)
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('CSV'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      // Test Import with invalid JSON shows error SnackBar
+      await tester.scrollUntilVisible(find.text('Import'), 200);
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'not-valid-json');
+      await tester.tap(find.text('Import Data').last);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Import failed:'), findsOneWidget);
+
+      // Test Clear All Entries (keep dealers)
+      await tester.scrollUntilVisible(find.text('Clear'), 200);
+      await tester.tap(find.text('Clear'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect((await repo.watchEntries().first), isEmpty);
+      expect((await repo.watchDealers().first).length, 73);
+
+      // Test Reset All Data (clears dealers & entries)
+      // Dismiss SnackBar before tapping Reset at the bottom
+      ScaffoldMessenger.of(tester.element(find.text('Reset')))
+          .hideCurrentSnackBar();
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Reset'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reset'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect((await repo.watchDealers().first), isEmpty);
+      expect((await repo.watchEntries().first), isEmpty);
 
       repo.dispose();
     });

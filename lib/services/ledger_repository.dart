@@ -170,7 +170,8 @@ class FirestoreLedgerRepository implements LedgerRepository {
       name: name.trim(),
       createdAt: now,
     );
-    await docRef.set(dealer.toMap());
+    // Queue write optimistically so UI updates instantly via Firestore local cache.
+    unawaited(docRef.set(dealer.toMap()));
     return dealer;
   }
 
@@ -230,18 +231,19 @@ class FirestoreLedgerRepository implements LedgerRepository {
       note: note.trim(),
       createdAt: now,
     );
-    await docRef.set(entry.toMap());
+    // Queue write optimistically so Debit/Credit saves feel instant even on slow internet.
+    unawaited(docRef.set(entry.toMap()));
     return entry;
   }
 
   @override
   Future<void> updateEntry(LedgerEntry entry) async {
-    await _entriesCol.doc(entry.id).update(entry.toMap());
+    unawaited(_entriesCol.doc(entry.id).update(entry.toMap()));
   }
 
   @override
   Future<void> deleteEntry(String entryId) async {
-    await _entriesCol.doc(entryId).delete();
+    unawaited(_entriesCol.doc(entryId).delete());
   }
 
   Future<void> _deleteCollection(

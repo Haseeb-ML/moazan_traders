@@ -5,6 +5,7 @@ import '../models/ledger_entry.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../utils/pdf_report_service.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/dealer_form_dialog.dart';
 import '../widgets/entry_form_dialog.dart';
@@ -52,17 +53,6 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
     if (!ok || !mounted) return;
     await context.read<LedgerProvider>().deleteDealer(dealer.id);
     if (mounted) Navigator.of(context).pop();
-  }
-
-  Future<void> _deleteEntry(LedgerEntry entry) async {
-    final ok = await showConfirmDeleteDialog(
-      context,
-      title: 'Delete Entry',
-      message:
-          'Delete ${entry.type == EntryType.debit ? "Debit (Bill)" : "Credit (Received)"} of ${AppFormatters.formatRs(entry.amount)} dated ${AppFormatters.formatDate(entry.date)}?',
-    );
-    if (!ok || !mounted) return;
-    await context.read<LedgerProvider>().deleteEntry(entry.id);
   }
 
   @override
@@ -144,10 +134,10 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
           constraints: const BoxConstraints(maxWidth: 900),
           child: Column(
             children: [
-              // Top Summary Cards
+              // Compact Top Summary & Quick Action Bar (leaves room for 15+ table rows)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                 color: AppColors.navy,
                 child: Column(
                   children: [
@@ -161,23 +151,23 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
                             bgColor: Colors.white.withValues(alpha: 0.14),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: _SummaryPill(
                             label: _preset == DateFilterPreset.allTime
-                                ? 'Total Debit'
-                                : '${_preset.label} Debit',
+                                ? 'Debit'
+                                : '${_compactPresetLabel(_preset)} Dr',
                             value: AppFormatters.formatRs(periodDebit),
                             color: const Color(0xFFFFCDD2),
                             bgColor: Colors.white.withValues(alpha: 0.10),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: _SummaryPill(
                             label: _preset == DateFilterPreset.allTime
-                                ? 'Total Credit'
-                                : '${_preset.label} Credit',
+                                ? 'Credit'
+                                : '${_compactPresetLabel(_preset)} Cr',
                             value: AppFormatters.formatRs(periodCredit),
                             color: const Color(0xFFC8E6C9),
                             bgColor: Colors.white.withValues(alpha: 0.10),
@@ -185,36 +175,50 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.red,
+                          child: SizedBox(
+                            height: 34,
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.red,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                textStyle: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                              onPressed: () => showEntryFormDialog(
+                                context,
+                                initialDealer: dealer,
+                                initialType: EntryType.debit,
+                              ),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Add Debit'),
                             ),
-                            onPressed: () => showEntryFormDialog(
-                              context,
-                              initialDealer: dealer,
-                              initialType: EntryType.debit,
-                            ),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Debit'),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.credit,
+                          child: SizedBox(
+                            height: 34,
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.credit,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                textStyle: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                              onPressed: () => showEntryFormDialog(
+                                context,
+                                initialDealer: dealer,
+                                initialType: EntryType.credit,
+                              ),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Add Credit'),
                             ),
-                            onPressed: () => showEntryFormDialog(
-                              context,
-                              initialDealer: dealer,
-                              initialType: EntryType.credit,
-                            ),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Credit'),
                           ),
                         ),
                       ],
@@ -223,16 +227,18 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
                 ),
               ),
 
-              // Date Filter Chips (compact so all presets fit cleanly)
+              // Compact Date Filter Chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 child: Row(
                   children: [
                     for (final preset in DateFilterPreset.values) ...[
                       ChoiceChip(
-                        visualDensity: VisualDensity.compact,
+                        visualDensity: const VisualDensity(
+                            horizontal: -2, vertical: -3),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         labelPadding:
                             const EdgeInsets.symmetric(horizontal: 6),
                         label: Text(
@@ -240,7 +246,7 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
                                   _customRange != null
                               ? '${AppFormatters.formatShortDate(_customRange!.start)} - ${AppFormatters.formatShortDate(_customRange!.end)}'
                               : _compactPresetLabel(preset),
-                          style: const TextStyle(fontSize: 12),
+                          style: const TextStyle(fontSize: 11),
                         ),
                         selected: _preset == preset,
                         onSelected: (_) {
@@ -253,6 +259,37 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
                       ),
                       const SizedBox(width: 6),
                     ],
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.red,
+                        visualDensity: const VisualDensity(
+                            horizontal: -2, vertical: -3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        minimumSize: const Size(0, 28),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: displayEntries.isEmpty
+                          ? null
+                          : () => PdfReportService.openDealerKhataPdf(
+                                context,
+                                dealer: dealer,
+                                entries: displayEntries,
+                                runningBalances: runningBalances,
+                                totalDebit: periodDebit,
+                                totalCredit: periodCredit,
+                                periodLabel: _preset ==
+                                            DateFilterPreset.custom &&
+                                        _customRange != null
+                                    ? '${AppFormatters.formatShortDate(_customRange!.start)} - ${AppFormatters.formatShortDate(_customRange!.end)}'
+                                    : _preset.label,
+                              ),
+                      icon: const Icon(Icons.picture_as_pdf_outlined,
+                          size: 14),
+                      label: const Text('PDF',
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.w700)),
+                    ),
                   ],
                 ),
               ),
@@ -270,15 +307,15 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
                         builder: (context, constraints) {
                           final isCompact = constraints.maxWidth < 560;
                           final hMargin = isCompact ? 8.0 : 16.0;
-                          final cellPadH = isCompact ? 6.0 : 12.0;
-                          final cellPadV = isCompact ? 8.0 : 10.0;
+                          final cellPadH = isCompact ? 6.0 : 10.0;
+                          final cellPadV = isCompact ? 3.5 : 5.0;
 
                           final colWidths = <int, TableColumnWidth>{
-                            0: const FlexColumnWidth(3.2),
+                            0: const FlexColumnWidth(3.4),
                             1: const FlexColumnWidth(2.0),
                             2: const FlexColumnWidth(2.0),
                             3: const FlexColumnWidth(2.2),
-                            4: FixedColumnWidth(isCompact ? 54 : 72),
+                            4: FixedColumnWidth(isCompact ? 34 : 44),
                           };
 
                           return Padding(
@@ -361,9 +398,9 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
                                           ),
                                           const Padding(
                                             padding: EdgeInsets.symmetric(
-                                                vertical: 10),
+                                                vertical: 8),
                                             child: Text(
-                                              'Action',
+                                              'Edit',
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 fontWeight: FontWeight.w700,
@@ -441,7 +478,8 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
     required double cellPadV,
   }) {
     final isDebit = entry.type == EntryType.debit;
-    final details = [
+    final dateStr = AppFormatters.formatShortDate(entry.date);
+    final desc = [
       if (entry.billNo.isNotEmpty) 'Bill #${entry.billNo}',
       if (entry.note.isNotEmpty) entry.note,
       if (entry.billNo.isEmpty && entry.note.isEmpty)
@@ -458,22 +496,22 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
               EdgeInsets.symmetric(horizontal: cellPadH, vertical: cellPadV),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isCompact
-                    ? AppFormatters.formatShortDate(entry.date)
-                    : AppFormatters.formatDate(entry.date),
+                dateStr,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10.5,
+                  height: 1.1,
                   fontWeight: FontWeight.w700,
                   color: AppColors.navy,
                 ),
               ),
-              const SizedBox(height: 2),
               Text(
-                details,
+                desc,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
+                  height: 1.15,
                   color: AppColors.textMuted,
                 ),
                 maxLines: 2,
@@ -492,7 +530,7 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
               child: Text(
                 isDebit ? AppFormatters.formatNumber(entry.amount) : '-',
                 style: TextStyle(
-                  fontSize: isCompact ? 12 : 13,
+                  fontSize: isCompact ? 11.5 : 12.5,
                   fontWeight: FontWeight.w700,
                   color: isDebit ? AppColors.debit : AppColors.textMuted,
                 ),
@@ -510,7 +548,7 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
               child: Text(
                 !isDebit ? AppFormatters.formatNumber(entry.amount) : '-',
                 style: TextStyle(
-                  fontSize: isCompact ? 12 : 13,
+                  fontSize: isCompact ? 11.5 : 12.5,
                   fontWeight: FontWeight.w700,
                   color: !isDebit ? AppColors.credit : AppColors.textMuted,
                 ),
@@ -528,7 +566,7 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
               child: Text(
                 AppFormatters.formatNumber(balAfter),
                 style: TextStyle(
-                  fontSize: isCompact ? 12 : 13,
+                  fontSize: isCompact ? 11.5 : 12.5,
                   fontWeight: FontWeight.w800,
                   color: balAfter > 0 ? AppColors.navy : AppColors.credit,
                 ),
@@ -536,43 +574,21 @@ class _DealerDetailScreenState extends State<DealerDetailScreen> {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Tooltip(
-                message: 'Edit Entry',
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () =>
-                      showEntryFormDialog(context, existingEntry: entry),
-                  child: Padding(
-                    padding: EdgeInsets.all(isCompact ? 4 : 6),
-                    child: Icon(
-                      Icons.edit_outlined,
-                      size: isCompact ? 16 : 18,
-                      color: AppColors.navy,
-                    ),
-                  ),
+        Center(
+          child: Tooltip(
+            message: 'Edit Entry',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => showEntryFormDialog(context, existingEntry: entry),
+              child: Padding(
+                padding: EdgeInsets.all(isCompact ? 3 : 5),
+                child: Icon(
+                  Icons.edit_outlined,
+                  size: isCompact ? 15 : 17,
+                  color: AppColors.navy,
                 ),
               ),
-              Tooltip(
-                message: 'Delete Entry',
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () => _deleteEntry(entry),
-                  child: Padding(
-                    padding: EdgeInsets.all(isCompact ? 4 : 6),
-                    child: Icon(
-                      Icons.delete_outline,
-                      size: isCompact ? 16 : 18,
-                      color: AppColors.red,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],
@@ -695,20 +711,20 @@ class _SummaryPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11),
+            style: const TextStyle(color: Colors.white70, fontSize: 10),
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -717,7 +733,7 @@ class _SummaryPill extends StatelessWidget {
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w800,
-                fontSize: 15,
+                fontSize: 13,
               ),
             ),
           ),

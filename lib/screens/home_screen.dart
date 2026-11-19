@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ledger_entry.dart';
 import '../providers/ledger_provider.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/pwa_install_stub.dart'
     if (dart.library.js_interop) '../utils/pwa_install_web.dart';
+import '../widgets/change_credentials_dialog.dart';
 import '../widgets/entry_form_dialog.dart';
 import 'data_tab.dart';
 import 'dealers_tab.dart';
@@ -12,7 +14,14 @@ import 'recent_entries_tab.dart';
 import 'reports_tab.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final AuthService? authService;
+  final VoidCallback? onLogout;
+
+  const HomeScreen({
+    super.key,
+    this.authService,
+    this.onLogout,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -119,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ] else ...[
             IconButton(
-              tooltip: 'New Bill (Debit)',
+              tooltip: 'New Debit',
               icon: const Icon(Icons.add_card, color: Color(0xFFFFCDD2)),
               onPressed: () => showEntryFormDialog(
                 context,
@@ -127,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             IconButton(
-              tooltip: 'New Wasooli (Credit)',
+              tooltip: 'New Credit',
               icon: const Icon(Icons.payments_outlined,
                   color: Color(0xFFC8E6C9)),
               onPressed: () => showEntryFormDialog(
@@ -136,6 +145,44 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
+          if (widget.authService != null)
+            PopupMenuButton<String>(
+              tooltip: 'Account Settings',
+              icon: const Icon(Icons.manage_accounts_outlined),
+              onSelected: (value) async {
+                if (value == 'change_creds') {
+                  await showChangeCredentialsDialog(
+                    context,
+                    widget.authService!,
+                  );
+                } else if (value == 'logout') {
+                  await widget.authService!.logout();
+                  widget.onLogout?.call();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'change_creds',
+                  child: Row(
+                    children: [
+                      Icon(Icons.key_outlined, size: 18),
+                      SizedBox(width: 8),
+                      Text('Change Username & Password'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, size: 18, color: Colors.redAccent),
+                      SizedBox(width: 8),
+                      Text('Logout'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
       body: Row(

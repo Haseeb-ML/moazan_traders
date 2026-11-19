@@ -1,6 +1,6 @@
 /// Transaction type in the khata ledger.
-/// - [debit]: Udhaar / Bill given to dealer (increases dealer's payable balance).
-/// - [credit]: Payment / Receiving collected from dealer (decreases balance).
+/// - [debit]: Debit entry given to dealer (increases dealer's payable balance).
+/// - [credit]: Credit / Payment collected from dealer (decreases balance).
 enum EntryType {
   debit,
   credit,

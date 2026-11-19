@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import '../models/dealer.dart';
+import '../models/ledger_entry.dart';
 import '../providers/ledger_provider.dart';
 import '../theme/app_theme.dart';
 import 'web_download_stub.dart'
@@ -202,86 +203,268 @@ class PdfReportService {
     final stamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final filename = 'Moazan_Traders_Dealer_Balance_$stamp.pdf';
 
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => _DealerBalancePdfPreviewScreen(
-          filename: filename,
-          summaries: summaries,
-        ),
-      ),
+    await _directDownloadPdf(
+      context,
+      filename: filename,
+      buildPdf: () => buildAllDealersBalancePdf(summaries),
     );
   }
-}
 
-class _DealerBalancePdfPreviewScreen extends StatefulWidget {
-  final String filename;
-  final List<DealerSummary> summaries;
+  /// Builds an individual dealer's Khata Ledger PDF:
+  /// Date | Details | Debit | Credit | Balance + Total row.
+  static Future<Uint8List> buildDealerKhataPdf({
+    required Dealer dealer,
+    required List<LedgerEntry> entries,
+    required Map<String, double> runningBalances,
+    required double totalDebit,
+    required double totalCredit,
+    required String periodLabel,
+  }) async {
+    final now = DateTime.now();
+    final dateStr = DateFormat('dd/MM/yyyy').format(now);
+    final timeStr = DateFormat('HH:mm:ss').format(now);
+    final netBalance = totalDebit - totalCredit;
 
-  const _DealerBalancePdfPreviewScreen({
-    required this.filename,
-    required this.summaries,
-  });
+    final doc = pw.Document(
+      title: '${dealer.name} Khata - Moazan Traders Kamoke',
+      author: 'Moazan Traders Kamoke',
+    );
 
-  @override
-  State<_DealerBalancePdfPreviewScreen> createState() =>
-      _DealerBalancePdfPreviewScreenState();
-}
-
-class _DealerBalancePdfPreviewScreenState
-    extends State<_DealerBalancePdfPreviewScreen> {
-  bool _downloading = false;
-
-  Future<void> _download() async {
-    setState(() => _downloading = true);
-    try {
-      final bytes =
-          await PdfReportService.buildAllDealersBalancePdf(widget.summaries);
-      if (!mounted) return;
-      await downloadBytesFile(
-        context,
-        filename: widget.filename,
-        bytes: bytes,
-        mimeType: 'application/pdf',
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _downloading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dealer Balance PDF'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.red,
-                foregroundColor: Colors.white,
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        header: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            pw.Center(
+              child: pw.Text(
+                'Moazan Traders - Kamoke',
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.grey700,
+                ),
               ),
-              onPressed: _downloading ? null : _download,
-              icon: const Icon(Icons.download, size: 18),
-              label: const Text('Download PDF'),
+            ),
+            pw.Center(
+              child: pw.Text(
+                '${dealer.name} (${dealer.code})',
+                style: pw.TextStyle(
+                  fontSize: 15,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Period: $periodLabel  |  Printed: $dateStr $timeStr',
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+                pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 6),
+            pw.Divider(thickness: 1, height: 1),
+          ],
+        ),
+        build: (context) => [
+          pw.TableHelper.fromTextArray(
+            border: const pw.TableBorder(
+              bottom: pw.BorderSide(width: 0.8),
+              horizontalInside: pw.BorderSide(
+                color: PdfColors.grey300,
+                width: 0.4,
+              ),
+            ),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 9.5,
+            ),
+            headerDecoration: const pw.BoxDecoration(
+              border: pw.Border(
+                bottom: pw.BorderSide(width: 1),
+              ),
+            ),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellPadding:
+                const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
+            columnWidths: {
+              0: const pw.FixedColumnWidth(68),
+              1: const pw.FlexColumnWidth(3),
+              2: const pw.FixedColumnWidth(76),
+              3: const pw.FixedColumnWidth(76),
+              4: const pw.FixedColumnWidth(82),
+            },
+            cellAlignments: {
+              0: pw.Alignment.centerLeft,
+              1: pw.Alignment.centerLeft,
+              2: pw.Alignment.centerRight,
+              3: pw.Alignment.centerRight,
+              4: pw.Alignment.centerRight,
+            },
+            headers: ['Date', 'Details', 'Debit', 'Credit', 'Balance'],
+            data: [
+              for (final e in entries)
+                [
+                  DateFormat('dd/MM/yyyy').format(e.date),
+                  [
+                    if (e.billNo.isNotEmpty) 'Bill #${e.billNo}',
+                    if (e.note.isNotEmpty) e.note,
+                    if (e.billNo.isEmpty && e.note.isEmpty)
+                      (e.type == EntryType.debit ? 'Debit' : 'Credit'),
+                  ].join(' - '),
+                  e.type == EntryType.debit ? _amountFmt.format(e.amount) : '-',
+                  e.type == EntryType.credit
+                      ? _amountFmt.format(e.amount)
+                      : '-',
+                  _amountFmt.format(runningBalances[e.id] ?? 0),
+                ],
+            ],
+          ),
+          pw.SizedBox(height: 4),
+          pw.Container(
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(
+                top: pw.BorderSide(width: 1.2),
+                bottom: pw.BorderSide(width: 1.2),
+              ),
+            ),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: pw.Row(
+              children: [
+                pw.SizedBox(
+                  width: 68,
+                  child: pw.Text(
+                    'Total',
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+                pw.Expanded(
+                  flex: 3,
+                  child: pw.Text(
+                    '${entries.length} Entries',
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 9.5,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(
+                  width: 76,
+                  child: pw.Text(
+                    _amountFmt.format(totalDebit),
+                    textAlign: pw.TextAlign.right,
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 9.5,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(
+                  width: 76,
+                  child: pw.Text(
+                    _amountFmt.format(totalCredit),
+                    textAlign: pw.TextAlign.right,
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 9.5,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(
+                  width: 82,
+                  child: pw.Text(
+                    _amountFmt.format(netBalance),
+                    textAlign: pw.TextAlign.right,
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 9.5,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
-      body: PdfPreview(
-        canChangePageFormat: false,
-        canChangeOrientation: false,
-        canDebug: false,
-        pdfFileName: widget.filename,
-        build: (_) =>
-            PdfReportService.buildAllDealersBalancePdf(widget.summaries),
+    );
+
+    return doc.save();
+  }
+
+  static Future<void> openDealerKhataPdf(
+    BuildContext context, {
+    required Dealer dealer,
+    required List<LedgerEntry> entries,
+    required Map<String, double> runningBalances,
+    required double totalDebit,
+    required double totalCredit,
+    required String periodLabel,
+  }) async {
+    final stamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final safeCode = dealer.code.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final filename = 'Khata_${safeCode}_$stamp.pdf';
+
+    await _directDownloadPdf(
+      context,
+      filename: filename,
+      buildPdf: () => buildDealerKhataPdf(
+        dealer: dealer,
+        entries: entries,
+        runningBalances: runningBalances,
+        totalDebit: totalDebit,
+        totalCredit: totalCredit,
+        periodLabel: periodLabel,
       ),
     );
+  }
+
+  static Future<void> _directDownloadPdf(
+    BuildContext context, {
+    required String filename,
+    required Future<Uint8List> Function() buildPdf,
+  }) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(
+      const SnackBar(
+        content: Text('Downloading PDF...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    try {
+      final bytes = await buildPdf();
+      if (!context.mounted) return;
+      await downloadBytesFile(
+        context,
+        filename: filename,
+        bytes: bytes,
+        mimeType: 'application/pdf',
+      );
+      messenger?.hideCurrentSnackBar();
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text('PDF Downloaded: $filename'),
+          backgroundColor: AppColors.credit,
+        ),
+      );
+    } catch (e) {
+      messenger?.hideCurrentSnackBar();
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text('PDF error: $e'),
+          backgroundColor: AppColors.debit,
+        ),
+      );
+    }
   }
 }

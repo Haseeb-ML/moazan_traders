@@ -103,7 +103,7 @@ class _ReportsTabState extends State<ReportsTab> {
                       SizedBox(
                         width: cardWidth,
                         child: _ReportMetricCard(
-                          label: 'Total Debit (Bills)',
+                          label: 'Total Debit',
                           value: AppFormatters.formatRs(totalDebit),
                           color: AppColors.debit,
                           bgColor: AppColors.debitBg,
@@ -112,7 +112,7 @@ class _ReportsTabState extends State<ReportsTab> {
                       SizedBox(
                         width: cardWidth,
                         child: _ReportMetricCard(
-                          label: 'Total Credit (Wasooli)',
+                          label: 'Total Credit',
                           value: AppFormatters.formatRs(totalCredit),
                           color: AppColors.credit,
                           bgColor: AppColors.creditBg,
